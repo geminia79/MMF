@@ -1,0 +1,67 @@
+//@version=5
+indicator("Multi Timeframe Trend Indicator", overlay=true)
+
+// User inputs for label visibility, font size, color, and opacity
+showLabel = input(true, title="Show Trend Label")
+fontSizeOption = input.int(3, title="Font Size", minval=1, maxval=5)
+labelColor = input.color(color.blue, title="Label Color")
+labelOpacity = input.int(100, title="Label Opacity", minval=0, maxval=100)
+
+// Define the EMA length
+length = 21  // Length of the EMA
+
+// Map integer input to actual font sizes
+fontSize() =>
+    switch fontSizeOption
+        1 => size.tiny
+        2 => size.small
+        3 => size.normal
+        4 => size.large
+        5 => size.huge
+        6 => size.normal
+
+// Function to calculate EMA and determine trend
+emaTrend(src, length, tf) =>
+    e = request.security(syminfo.tickerid, tf, ta.ema(src, length))
+    trend = 0
+    trend := if (e > e[1])
+        1
+    else if (e < e[1])
+        -1
+    else
+        0
+    trend
+
+// Fetching trends from different timeframes
+trend5M = emaTrend(close, length, "5")
+trend15M = emaTrend(close, length, "15")
+trend1H = emaTrend(close, length, "60")
+trend4H = emaTrend(close, length, "240")
+
+// Function to convert trend numerical value to text
+trendText(trend) =>
+    switch trend
+        1 => "UP"
+        -1 => "DOWN"
+        0 => "FLAT"
+
+// Update the label to display trend information
+var label infoLabel = na
+if showLabel
+    if na(infoLabel)
+        infoLabel := label.new(x=bar_index - 60, y=high, text="", style=label.style_label_down, color=color.new(labelColor, labelOpacity), size=fontSize(), xloc=xloc.bar_index, yloc=yloc.price)
+    else
+        label.set_text(infoLabel, "5M Trend: " + trendText(trend5M) + "\n15M Trend: " + trendText(trend15M) + "\n1H Trend: " + trendText(trend1H) + "\n4H Trend: " + trendText(trend4H))
+        label.set_xy(infoLabel, x=bar_index - 60, y=high)
+        label.set_style(infoLabel, label.style_label_down)
+        label.set_color(infoLabel, color.new(labelColor, labelOpacity))
+        label.set_size(infoLabel, fontSize())
+else
+    if not na(infoLabel)
+        label.delete(infoLabel)
+
+// Setting up alerts for trend changes
+alertcondition(trend5M != trend5M[1], title="5M Trend Change", message="5M Trend has changed")
+alertcondition(trend15M != trend15M[1], title="15M Trend Change", message="15M Trend has changed")
+alertcondition(trend1H != trend1H[1], title="1H Trend Change", message="1H Trend has changed")
+alertcondition(trend4H != trend4H[1], title="4H Trend Change", message="4H Trend has changed")
